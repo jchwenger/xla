@@ -1,29 +1,31 @@
 import args_parse
 
 FLAGS = args_parse.parse_common_options(
-    datadir='/tmp/mingpt-data',
+    datadir="/mnt/disks/dataset",
     batch_size=128,
     momentum=0.5,
     lr=6e-4,
-    lr_decay=true,
     target_accuracy=98.0,
     num_epochs=18,
-    block_size=64,
-    vocab_size=256,
-    n_embd=128,
-    n_layer=4,
-    n_head=4,
-    embd_pdrop=0.1,
-    resid_pdrop=0.1,
-    betas=[0.9, 0.95],
-    grad_norm_clip=1,
-    warmup_tokens=20000,
-    weight_decay=0.1,
 )
+
+FLAGS.lr_decay = True
+FLAGS.block_size = 64
+FLAGS.vocab_size = 256
+FLAGS.n_embd = 128
+FLAGS.n_layer = 4
+FLAGS.n_head = 4
+FLAGS.embd_pdrop = 0.1
+FLAGS.resid_pdrop = 0.1
+FLAGS.betas = [0.9, 0.95]
+FLAGS.grad_norm_clip = 1
+FLAGS.warmup_tokens = 20000
+FLAGS.weight_decay = 0.1
 
 import os
 import sys
 import glob
+import math
 import shutil
 import numpy as np
 
@@ -44,16 +46,17 @@ import torch_xla.distributed.xla_multiprocessing as xmp
 # --------------------------------------------------------------------------------
 # ByteLevel Dataset
 
+
 class BytesDataset(Dataset):
     def __init__(self, data, input_path, block_size):
         self.input_path = input_path
-        self.bytes = data.encode('utf-8')
+        self.bytes = data.encode("utf-8")
         self.block_size = block_size
         self.vocab_size = 256
-        self.stoi = { "bytes": True } # for saving purposes
+        self.stoi = {"bytes": True}  # for saving purposes
 
     def reload(data):
-        self.bytes = load_files(files).encode('utf-8')
+        self.bytes = load_files(files).encode("utf-8")
 
     @staticmethod
     def encode(text):
@@ -75,6 +78,7 @@ class BytesDataset(Dataset):
 
 # --------------------------------------------------------------------------------
 # Karpathy's MinGPT
+
 
 class CausalSelfAttention(nn.Module):
     """
@@ -171,9 +175,7 @@ class GPT(nn.Module):
         self.block_size = config.block_size
         self.apply(self._init_weights)
 
-        print(
-            f"number of parameters: {sum(p.numel() for p in self.parameters()):,}"
-        )
+        print(f"number of parameters: {sum(p.numel() for p in self.parameters()):,}")
 
     def save(self, model_dir, model_name):
         self.config.save(model_dir, model_name)
@@ -338,7 +340,6 @@ def load_files(path):
     return raw_text
 
 
-
 def split_dataset(dataset, divisor=100, seed=42):
     ds_len = len(dataset)
     # print("before random split, len:", ds_len)
@@ -355,138 +356,183 @@ def split_dataset(dataset, divisor=100, seed=42):
     }
 
 
-
 def _train_update(device, x, loss, tracker, writer):
-  test_utils.print_training_update(
-      device,
-      x,
-      loss.item(),
-      tracker.rate(),
-      tracker.global_rate(),
-      summary_writer=writer)
+    test_utils.print_training_update(
+        device,
+        x,
+        loss.item(),
+        tracker.rate(),
+        tracker.global_rate(),
+        summary_writer=writer,
+    )
 
 
 def train_mingpt(flags, **kwargs):
-  torch.manual_seed(1)
+    torch.manual_seed(1)
 
-  if flags.fake_data:
-      # raise NotImplementedError("Fake data not implemented yet.")
-    train_loader = xu.SampleGenerator(
-        data=(torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64),
-              torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64)),
-        sample_count=60000 // flags.batch_size // xm.xrt_world_size())
-    test_loader = xu.SampleGenerator(
-        data=(torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64),
-              torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64)),
-        sample_count=10000 // flags.batch_size // xm.xrt_world_size())
-  else:
+    if flags.fake_data:
+        # raise NotImplementedError("Fake data not implemented yet.")
+        train_loader = xu.SampleGenerator(
+            data=(
+                torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64),
+                torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64),
+            ),
+            sample_count=60000 // flags.batch_size // xm.xrt_world_size(),
+        )
+        test_loader = xu.SampleGenerator(
+            data=(
+                torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64),
+                torch.zeros(flags.batch_size, 1, flags.block_size, dtype=torch.int64),
+            ),
+            sample_count=10000 // flags.batch_size // xm.xrt_world_size(),
+        )
+    else:
 
-    train_dataset, test_dataset = split_dataset(
-        BytesDataset(load_files(files), files, block_size), divisor=flags.train_test_split
+        train_dataset, test_dataset = split_dataset(
+            BytesDataset(load_files(flags.datadir), files, block_size),
+            divisor=flags.train_test_split,
+        )
+
+        train_sampler = None
+        if xm.xrt_world_size() > 1:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(
+                train_dataset,
+                num_replicas=xm.xrt_world_size(),
+                rank=xm.get_ordinal(),
+                shuffle=True,
+            )
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=flags.batch_size,
+            sampler=train_sampler,
+            drop_last=flags.drop_last,
+            shuffle=False if train_sampler else True,
+            num_workers=flags.num_workers,
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=flags.batch_size,
+            drop_last=flags.drop_last,
+            shuffle=False,
+            num_workers=flags.num_workers,
+        )
+
+    # Scale learning rate to num cores
+    lr = flags.lr * xm.xrt_world_size()
+
+    device = xm.xla_device()
+    model = GPT(flags).to(device)
+    writer = None
+    if xm.is_master_ordinal():
+        writer = test_utils.get_summary_writer(flags.logdir)
+    optimizer = model.configure_optimizers(flags)
+    scaler = GradScaler()
+
+    best_loss = float("inf")
+    tokens = 0  # counter used for learning rate decay
+
+    def train_loop_fn(loader):
+        tracker = xm.RateTracker()
+        model.train()
+        for step, (data, target) in enumerate(loader):
+            optimizer.zero_grad()
+            with autocast():
+                logits, loss = model(data, target)
+            scaler.scale(loss).backward()
+            gradients = xm._fetch_gradients(optimizer)
+            xm.all_reduce("sum", gradients, scale=1.0 / xm.xrt_world_size())
+            scaler.step(optimizer)
+            scaler.update()
+            xm.mark_step()
+
+            # decay the learning rate based on our progress
+            if flags.lr_decay:
+                # number of tokens processed this step
+                tokens += (
+                    (flags.block_size + 1) * flags.batch_size * xm.xrt_world_size()
+                )
+                if tokens < flags.warmup_tokens:
+                    # linear warmup
+                    lr_mult = float(tokens) / float(max(1, flags.warmup_tokens))
+                else:
+                    # cosine learning rate decay
+                    progress = float(tokens - flags.warmup_tokens) / float(
+                        max(1, flags.final_tokens - flags.warmup_tokens)
+                    )
+                    lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
+                lr = flags.learning_rate * lr_mult
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = lr
+            else:
+                lr = flags.learning_rate
+
+            tracker.add(flags.batch_size)
+            if step % flags.log_steps == 0:
+                xm.add_step_closure(
+                    _train_update, args=(device, step, loss, tracker, writer)
+                )
+
+    def test_loop_fn(loader):
+        total_samples = 0
+        correct = 0
+        model.eval()
+        losses = []
+        for data, target in loader:
+            logits, loss = model(data, target)
+        test_loss = float(np.mean(losses))
+        test_loss = xm.mesh_reduce("test_loss", test_loss, np.mean)
+        return test_loss
+
+    train_device_loader = pl.MpDeviceLoader(train_loader, device)
+    test_device_loader = pl.MpDeviceLoader(test_loader, device)
+    test_loss, min_test_loss = 0.0, 0.0
+    for epoch in range(1, flags.num_epochs + 1):
+        xm.master_print("Epoch {} train begin {}".format(epoch, test_utils.now()))
+        train_loop_fn(train_device_loader)
+        xm.master_print("Epoch {} train end {}".format(epoch, test_utils.now()))
+
+        test_loss = test_loop_fn(test_device_loader)
+        ppl = math.exp(test_loss)
+        xm.master_print(
+            "Epoch {} test end {}, Test Loss={:.2f}, Perplexity={:.2f}".format(
+                epoch, test_utils.now(), test_loss, ppl
+            )
+        )
+        min_test_loss = min(test_loss, min_test_loss)
+        test_utils.write_to_summary(
+            writer,
+            epoch,
+            dict_to_write={
+                "Test Loss/test": test_loss,
+                "Perplexity/test": math.exp(test_loss),
+            },
+            write_xla_metrics=True,
+        )
+        if flags.metrics_debug:
+            xm.master_print(met.metrics_report())
+
+    test_utils.close_summary_writer(writer)
+    xm.master_print(
+        "Min Loss: {:.2f}, Min Perplexity: {:.2f}".format(
+            min_test_loss, math.exp(min_test_loss)
+        )
     )
-
-    train_sampler = None
-    if xm.xrt_world_size() > 1:
-      train_sampler = torch.utils.data.distributed.DistributedSampler(
-          train_dataset,
-          num_replicas=xm.xrt_world_size(),
-          rank=xm.get_ordinal(),
-          shuffle=True)
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=flags.batch_size,
-        sampler=train_sampler,
-        drop_last=flags.drop_last,
-        shuffle=False if train_sampler else True,
-        num_workers=flags.num_workers)
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=flags.batch_size,
-        drop_last=flags.drop_last,
-        shuffle=False,
-        num_workers=flags.num_workers)
-
-  # Scale learning rate to num cores
-  lr = flags.lr * xm.xrt_world_size()
-
-  device = xm.xla_device()
-  model = GPT(flags).to(device)
-  writer = None
-  if xm.is_master_ordinal():
-    writer = test_utils.get_summary_writer(flags.logdir)
-  optimizer = model.configure_optimizers(flags)
-  # optimizer = optim.SGD(model.parameters(), lr=lr, momentum=flags.momentum)
-  loss_fn = nn.NLLLoss()
-  scaler = GradScaler()
-
-  def train_loop_fn(loader):
-    tracker = xm.RateTracker()
-    model.train()
-    for step, (data, target) in enumerate(loader):
-      optimizer.zero_grad()
-      with autocast():
-        output = model(data)
-        loss = loss_fn(output, target)
-      scaler.scale(loss).backward()
-      gradients = xm._fetch_gradients(optimizer)
-      xm.all_reduce('sum', gradients, scale=1.0 / xm.xrt_world_size())
-      scaler.step(optimizer)
-      scaler.update()
-      xm.mark_step()
-      tracker.add(flags.batch_size)
-      if step % flags.log_steps == 0:
-        xm.add_step_closure(
-            _train_update, args=(device, step, loss, tracker, writer))
-
-  def test_loop_fn(loader):
-    total_samples = 0
-    correct = 0
-    model.eval()
-    for data, target in loader:
-      output = model(data)
-      pred = output.max(1, keepdim=True)[1]
-      correct += pred.eq(target.view_as(pred)).sum()
-      total_samples += data.size()[0]
-
-    accuracy = 100.0 * correct.item() / total_samples
-    accuracy = xm.mesh_reduce('test_accuracy', accuracy, np.mean)
-    return accuracy
-
-  train_device_loader = pl.MpDeviceLoader(train_loader, device)
-  test_device_loader = pl.MpDeviceLoader(test_loader, device)
-  accuracy, max_accuracy = 0.0, 0.0
-  for epoch in range(1, flags.num_epochs + 1):
-    xm.master_print('Epoch {} train begin {}'.format(epoch, test_utils.now()))
-    train_loop_fn(train_device_loader)
-    xm.master_print('Epoch {} train end {}'.format(epoch, test_utils.now()))
-
-    accuracy = test_loop_fn(test_device_loader)
-    xm.master_print('Epoch {} test end {}, Accuracy={:.2f}'.format(
-        epoch, test_utils.now(), accuracy))
-    max_accuracy = max(accuracy, max_accuracy)
-    test_utils.write_to_summary(
-        writer,
-        epoch,
-        dict_to_write={'Accuracy/test': accuracy},
-        write_xla_metrics=True)
-    if flags.metrics_debug:
-      xm.master_print(met.metrics_report())
-
-  test_utils.close_summary_writer(writer)
-  xm.master_print('Max Accuracy: {:.2f}%'.format(max_accuracy))
-  return max_accuracy
+    return min_test_loss
 
 
 def _mp_fn(index, flags):
-  torch.set_default_tensor_type('torch.FloatTensor')
-  accuracy = train_mingpt(flags)
-  if flags.tidy and os.path.isdir(flags.datadir):
-    shutil.rmtree(flags.datadir)
-  if accuracy < flags.target_accuracy:
-    print('Accuracy {} is below target {}'.format(accuracy,
-                                                  flags.target_accuracy))
-    sys.exit(21)
+    torch.set_default_tensor_type("torch.FloatTensor")
+    loss = train_mingpt(flags)
+    if flags.tidy and os.path.isdir(flags.datadir):
+        shutil.rmtree(flags.datadir)
+    if accuracy < flags.target_loss:
+        print(
+            "Loss {} is below target {}. Perplexity: ".format(
+                loss, flags.target_accuracy, math.exp(loss)
+            )
+        )
+        sys.exit(21)
 
 
-if __name__ == '__main__':
-  xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+if __name__ == "__main__":
+    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)

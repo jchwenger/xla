@@ -394,7 +394,7 @@ def train_mingpt(flags, **kwargs):
     else:
 
         train_dataset, test_dataset = split_dataset(
-            BytesDataset(load_files(flags.datadir), flags.datadir, block_size),
+            BytesDataset(load_files(flags.datadir), flags.datadir, flags.block_size),
             divisor=flags.train_test_split,
         )
 

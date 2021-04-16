@@ -326,8 +326,8 @@ def load_files(path):
     total = len(paths)
     print(f"found {total} files")
     for i, path in enumerate(paths):
-        print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path} \r", end="")
-        sys.stdout.write("\033[K\033[F")
+        print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path}", end="")
+        # sys.stdout.write("\033[K\033[F")
         # Plain text
         if sys.getsizeof(raw_text) > psutil.virtual_memory().available / 100:
             print(

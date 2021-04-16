@@ -34,6 +34,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+from torch.utils.data import Dataset
+
 import torch_xla
 import torch_xla.utils.utils as xu
 import torch_xla.core.xla_model as xm

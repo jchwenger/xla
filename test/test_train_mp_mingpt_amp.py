@@ -22,7 +22,7 @@ FLAGS.betas = [0.9, 0.95]
 FLAGS.grad_norm_clip = 1
 FLAGS.warmup_tokens = 20000
 FLAGS.weight_decay = 0.1
-
+FLAGS.train_test_split = 100
 import os
 import sys
 import glob

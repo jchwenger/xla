@@ -2,6 +2,7 @@ import args_parse
 
 FLAGS = args_parse.parse_common_options(
     datadir="/mnt/disks/dataset",
+    num_cores=16,
     batch_size=128,
     momentum=0.5,
     lr=6e-4,

@@ -394,10 +394,11 @@ def train_mingpt(flags, **kwargs):
         )
     else:
 
-        train_dataset, test_dataset = split_dataset(
+        data = split_dataset(
             BytesDataset(load_files(flags.datadir), flags.datadir, flags.block_size),
             divisor=flags.train_test_split,
         )
+        train_dataset, test_dataset = data["train_dataset"], data["test_dataset"]
 
         train_sampler = None
         if xm.xrt_world_size() > 1:

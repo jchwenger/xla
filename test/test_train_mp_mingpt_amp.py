@@ -276,7 +276,7 @@ class GPT(nn.Module):
             },
         ]
         optimizer = torch.optim.AdamW(
-            optim_groups, lr=train_config.learning_rate, betas=train_config.betas
+            optim_groups, lr=train_config.lr, betas=train_config.betas
         )
         return optimizer
 

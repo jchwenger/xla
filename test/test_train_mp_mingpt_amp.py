@@ -324,16 +324,16 @@ def load_files(path):
     raw_text = ""
     random.shuffle(paths)
     total = len(paths)
-    # print(f"found {total} files")
+    print(f"found {total} files")
     for i, path in enumerate(paths):
-        # print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path} \r", end="")
-        # sys.stdout.write("\033[K\033[F")
-        # Plain text
-        # if sys.getsizeof(raw_text) > psutil.virtual_memory().available / 60:
-        #     print(
-        #         f"\nfiles loaded: {i}/{total} | used mem: {psutil.virtual_memory().percent}%"
-        #     )
-        #     break
+        print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path} \r", end="")
+        sys.stdout.write("\033[K\033[F")
+        Plain text
+        if sys.getsizeof(raw_text) > psutil.virtual_memory().available / 100:
+            print(
+                f"\nfiles loaded: {i}/{total} | used mem: {psutil.virtual_memory().percent}%"
+            )
+            break
         try:
             with open(path, "r", encoding="utf-8") as fp:
                 raw_text += fp.read()

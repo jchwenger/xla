@@ -17,6 +17,7 @@ FLAGS.n_layer = 4
 FLAGS.n_head = 4
 FLAGS.embd_pdrop = 0.1
 FLAGS.resid_pdrop = 0.1
+FLAGS.attn_pdrop = 0.1
 FLAGS.betas = [0.9, 0.95]
 FLAGS.grad_norm_clip = 1
 FLAGS.warmup_tokens = 20000

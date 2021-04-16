@@ -329,7 +329,7 @@ def load_files(path):
         print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path}")
         # sys.stdout.write("\033[K\033[F")
         # Plain text
-        if sys.getsizeof(raw_text) > psutil.virtual_memory().available / 100:
+        if sys.getsizeof(raw_text) > psutil.virtual_memory().available / 300:
             print(
                 f"\nfiles loaded: {i}/{total} | used mem: {psutil.virtual_memory().percent}%"
             )

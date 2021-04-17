@@ -3,7 +3,7 @@ import args_parse
 FLAGS = args_parse.parse_common_options(
     datadir="/mnt/disks/dataset",
     num_cores=8,
-    batch_size=128,
+    batch_size=1024,
     momentum=0.5,
     lr=6e-4,
     target_accuracy=98.0,
@@ -24,6 +24,7 @@ FLAGS.grad_norm_clip = 1
 FLAGS.warmup_tokens = 20000
 FLAGS.weight_decay = 0.1
 FLAGS.train_test_split = 100
+
 import os
 import sys
 import glob

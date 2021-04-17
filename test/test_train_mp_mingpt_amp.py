@@ -529,7 +529,7 @@ def train_mingpt(flags, **kwargs):
 
 
 def _mp_fn(index, flags):
-    torch.set_default_tensor_type("torch.FloatTensor")
+    # torch.set_default_tensor_type("torch.FloatTensor")
     loss = train_mingpt(flags)
     if flags.tidy and os.path.isdir(flags.datadir):
         shutil.rmtree(flags.datadir)

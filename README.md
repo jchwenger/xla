@@ -269,16 +269,21 @@ Create the instance group for distributed training using instructions from the t
 Once all the VMs are up, run this command to attach the PD to the VMs:
 
 ```bash
+# set your variables
+export PROJECT_ID=...
+export INST_GROUP_NAME=...
+export ZONE=...
+export PD_NAME=...
 for instance in $(
-	gcloud
-		--project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME}
-		--zone=${ZONE}
+	gcloud \
+		--project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME} \
+		--zone=${ZONE} \
 		--format='value(NAME)[terminator=" "]'
 )
 do
 	gcloud compute instances attach-disk "$instance" \
-		--disk $PD_NAME \
-		--zone ${ZONE} \
+		--disk=${PD_NAME} \
+		--zone=${ZONE} \
 		--mode=ro
 done
 ```
@@ -286,21 +291,21 @@ done
 Then run this command to mount the PD in the filesystem:
 
 ```bash
-C='sudo mkdir -p /mnt/disks/dataset &&'
-C='${C} sudo mount -o discard,defaults /dev/sdb /mnt/disks/dataset &&'
-C='${C} sudo chmod a+w /mnt/disks/dataset;'
-COMMAND='${C} df -h'
+C="sudo mkdir -p /mnt/disks/dataset &&"
+C="${C} sudo mount -o discard,defaults /dev/sdb /mnt/disks/dataset &&"
+C="${C} sudo chmod a+w /mnt/disks/dataset;"
+COMMAND="${C} df -h"
 for instance in $(
-	gcloud
-		--project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME}
-		--zone=${ZONE}
+	gcloud \
+		--project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME} \
+		--zone=${ZONE} \
 		--format='value(NAME)[terminator=" "]'
 )
 do
-	gcloud compute ssh
-		--project=${PROJECT_ID}
-		--zone=${ZONE} "$instance"
-		--command="$COMMAND"
+	gcloud compute ssh \
+		--project=${PROJECT_ID} \
+		--zone=${ZONE} "$instance" \
+		--command="$COMMAND" \
 		--quiet
 done
 ```

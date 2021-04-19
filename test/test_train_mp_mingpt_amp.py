@@ -184,29 +184,29 @@ class GPT(nn.Module):
     self.block_size = config.block_size
     self.apply(self._init_weights)
 
-    print(
+    xm.master_print(
         f"number of parameters: {sum(p.numel() for p in self.parameters()):,}")
 
   def save(self, model_dir, model_name):
     self.config.save(model_dir, model_name)
 
   def log(self):
-    print("-" * 40)
+    xm.master_print("-" * 40)
     msg = "Model's state_dict:"
-    print(msg)
-    print("-" * len(msg))
+    xm.master_print(msg)
+    xm.master_print("-" * len(msg))
     longest = len(max(self.state_dict().keys(), key=len))
     for param_tensor in self.state_dict():
-      print(
+      xm.master_print(
           f"{param_tensor:{longest}} {list(self.state_dict()[param_tensor].size())}"
       )
 
   def to_file(self, model_dir, model_name):
     fname = "innards.log"
     msg = f"Saving model's state_dict to {model_dir}/{model_name}/{fname}"
-    print("-" * 40)
-    print(msg)
-    print("-" * 40)
+    xm.master_print("-" * 40)
+    xm.master_print(msg)
+    xm.master_print("-" * 40)
     longest = len(max(self.state_dict().keys(), key=len))
     if not os.path.isdir(os.path.join(model_dir, model_name)):
       os.makedirs(os.path.join(model_dir, model_name))
@@ -330,13 +330,13 @@ def load_files(path):
   raw_text = ""
   random.shuffle(paths)
   total = len(paths)
-  # print(f"found {total} files")
+  # xm.master_print(f"found {total} files")
   for i, path in enumerate(paths):
-    # print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path}")
+    # xm.master_print(f"{i} | used mem: {psutil.virtual_memory().percent}% | {path}")
     # sys.stdout.write("\033[K\033[F")
     # Plain text
     if sys.getsizeof(raw_text) > psutil.virtual_memory().available / 1000:
-      # print(
+      # xm.master_print(
       #     f"\nfiles loaded: {i}/{total} | used mem: {psutil.virtual_memory().percent}%"
       # )
       break
@@ -344,8 +344,8 @@ def load_files(path):
       with open(path, "r", encoding="utf-8") as fp:
         raw_text += fp.read()
     except UnicodeDecodeError as e:
-      print(f"\e[31m{e}")
-      print(f"file: {path}\e[0m")
+      xm.master_print(f"\e[31m{e}")
+      xm.master_print(f"file: {path}\e[0m")
       # sys.exit()
 
   return raw_text
@@ -353,7 +353,7 @@ def load_files(path):
 
 def split_dataset(dataset, divisor=100, seed=42):
   ds_len = len(dataset)
-  # print("before random split, len:", ds_len)
+  # xm.master_print("before random split, len:", ds_len)
   test_len = ds_len // divisor
   test, train = torch.utils.data.random_split(
       dataset,

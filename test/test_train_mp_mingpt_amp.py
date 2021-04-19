@@ -43,6 +43,7 @@ from torch.utils.data import Dataset
 
 import torch_xla
 import torch_xla.utils.utils as xu
+import torch_xla.debug.metrics as met
 import torch_xla.core.xla_model as xm
 import torch_xla.debug.metrics as met
 from torch_xla.amp import autocast, GradScaler
@@ -524,4 +525,7 @@ def _mp_fn(index, flags):
 
 
 if __name__ == "__main__":
-  xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+    try:
+      xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+    except:
+        print(met.metrics_report())

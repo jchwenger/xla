@@ -89,11 +89,6 @@ class BytesDataset(Dataset):
 
 
 class CausalSelfAttention(nn.Module):
-  """
-    A vanilla multi-head masked self-attention layer with a projection at the end.
-    It is possible to use torch.nn.MultiheadAttention here but I am including an
-    explicit implementation here to show that there is nothing too scary here.
-    """
 
   def __init__(self, config):
     super().__init__()
@@ -142,7 +137,6 @@ class CausalSelfAttention(nn.Module):
 
 
 class Block(nn.Module):
-  """ an unassuming Transformer block """
 
   def __init__(self, config):
     super().__init__()
@@ -163,7 +157,6 @@ class Block(nn.Module):
 
 
 class GPT(nn.Module):
-  """  the full GPT language model, with a context size of block_size """
 
   def __init__(self, config):
     super().__init__()
@@ -229,12 +222,6 @@ class GPT(nn.Module):
       module.weight.data.fill_(1.0)
 
   def configure_optimizers(self, train_config):
-    """
-        This long function is unfortunately doing something very simple and is being very defensive:
-        We are separating out all parameters of the model into two buckets: those that will experience
-        weight decay for regularization and those that won't (biases, and layernorm/embedding weights).
-        We are then returning the PyTorch optimizer object.
-        """
 
     # separate out all parameters to those that will and won't experience regularizing weight decay
     decay = set()

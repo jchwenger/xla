@@ -520,7 +520,7 @@ def _mp_fn(index, flags):
     print(met.metrics_report())
   if flags.tidy and os.path.isdir(flags.datadir):
     shutil.rmtree(flags.datadir)
-  if accuracy < flags.target_loss:
+  if loss < flags.target_loss:
     print("Loss {} is below target {}. Perplexity: ".format(
         loss, math.exp(loss)))
     sys.exit(21)

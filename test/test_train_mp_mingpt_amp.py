@@ -1,7 +1,7 @@
 import args_parse
 
 FLAGS = args_parse.parse_common_options(
-    datadir="/home/jcw/mingpt-corpora",
+    datadir="/tmp/mingpt-data",
     num_cores=8,
     batch_size=16,
     momentum=0.5,

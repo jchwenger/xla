@@ -6,7 +6,6 @@ FLAGS = args_parse.parse_common_options(
     batch_size=16,
     momentum=0.5,
     lr=6e-4,
-    target_accuracy=98.0,
     num_epochs=18,
 )
 
@@ -520,12 +519,12 @@ def _mp_fn(index, flags):
     shutil.rmtree(flags.datadir)
   if accuracy < flags.target_loss:
     print("Loss {} is below target {}. Perplexity: ".format(
-        loss, flags.target_accuracy, math.exp(loss)))
+        loss, math.exp(loss)))
     sys.exit(21)
 
 
 if __name__ == "__main__":
-    try:
-      xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
-    except:
-        print(met.metrics_report())
+  try:
+    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  except:
+    print(met.metrics_report())

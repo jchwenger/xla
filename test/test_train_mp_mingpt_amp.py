@@ -514,7 +514,10 @@ def train_mingpt(flags, **kwargs):
 
 def _mp_fn(index, flags):
   # torch.set_default_tensor_type("torch.FloatTensor")
-  loss = train_mingpt(flags)
+  try:
+    loss = train_mingpt(flags)
+  except:
+    print(met.metrics_report())
   if flags.tidy and os.path.isdir(flags.datadir):
     shutil.rmtree(flags.datadir)
   if accuracy < flags.target_loss:
@@ -524,7 +527,4 @@ def _mp_fn(index, flags):
 
 
 if __name__ == "__main__":
-  try:
-    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
-  except:
-    print(met.metrics_report())
+  xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)

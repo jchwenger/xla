@@ -460,11 +460,11 @@ def train_mingpt(flags, **kwargs):
           progress = float(tokens - flags.warmup_tokens) / float(
               max(1, flags.final_tokens - flags.warmup_tokens))
           lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
-        lr = flags.learning_rate * lr_mult
+        lr = flags.lr * lr_mult
         for param_group in optimizer.param_groups:
           param_group["lr"] = lr
       else:
-        lr = flags.learning_rate
+        lr = flags.lr
 
       tracker.add(flags.batch_size)
       if step % flags.log_steps == 0:

@@ -509,14 +509,14 @@ def _mp_fn(index, flags):
   # torch.set_default_tensor_type("torch.FloatTensor")
   try:
     loss = train_mingpt(flags)
+    if flags.tidy and os.path.isdir(flags.datadir):
+      shutil.rmtree(flags.datadir)
+    if loss < flags.target_loss:
+      print("Loss {} is below target {}. Perplexity: ".format(
+          loss, math.exp(loss)))
+      sys.exit(21)
   except:
     print(met.metrics_report())
-  if flags.tidy and os.path.isdir(flags.datadir):
-    shutil.rmtree(flags.datadir)
-  if loss < flags.target_loss:
-    print("Loss {} is below target {}. Perplexity: ".format(
-        loss, math.exp(loss)))
-    sys.exit(21)
 
 
 if __name__ == "__main__":

@@ -434,6 +434,7 @@ def train_mingpt(flags, **kwargs):
   def train_loop_fn(loader):
     tracker = xm.RateTracker()
     model.train()
+    tokens = 0
     for step, (data, target) in enumerate(loader):
       optimizer.zero_grad()
       with autocast():

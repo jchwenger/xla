@@ -253,19 +253,19 @@ at::Tensor AtenXlaType::__rshift__(const at::Tensor& self,
                     });
 }
 
-at::Tensor AtenXlaType::adaptive_avg_pool3d(const at::Tensor& self,
-                                            at::IntArrayRef output_size) {
+at::Tensor AtenXlaType::_adaptive_avg_pool3d(const at::Tensor& self,
+                                             at::IntArrayRef output_size) {
   XLA_FN_COUNTER("xla::");
   auto output_size_list = XlaHelpers::I64List(output_size);
   if (!IsSupportedAdaptiveAvgPool(XlaHelpers::I64List(self.sizes()),
                                   output_size_list, /*pool_dim=*/3)) {
-    return AtenXlaTypeDefault::adaptive_avg_pool3d(self, output_size);
+    return AtenXlaTypeDefault::_adaptive_avg_pool3d(self, output_size);
   }
   return bridge::AtenFromXlaTensor(XLATensor::adaptive_avg_pool3d(
       bridge::GetXlaTensor(self), output_size_list));
 }
 
-at::Tensor AtenXlaType::adaptive_avg_pool3d_backward(
+at::Tensor AtenXlaType::_adaptive_avg_pool3d_backward(
     const at::Tensor& grad_output, const at::Tensor& self) {
   XLA_FN_COUNTER("xla::");
   int64_t rank = grad_output.dim();
@@ -274,7 +274,7 @@ at::Tensor AtenXlaType::adaptive_avg_pool3d_backward(
                                       grad_output.size(rank - 1)};
   if (!IsSupportedAdaptiveAvgPool(XlaHelpers::I64List(self.sizes()),
                                   output_size, /*pool_dim=*/3)) {
-    return AtenXlaTypeDefault::adaptive_avg_pool3d_backward(grad_output, self);
+    return AtenXlaTypeDefault::_adaptive_avg_pool3d_backward(grad_output, self);
   }
   return bridge::AtenFromXlaTensor(XLATensor::adaptive_avg_pool3d_backward(
       bridge::GetXlaTensor(grad_output), bridge::GetXlaTensor(self)));
@@ -1181,11 +1181,11 @@ at::Tensor AtenXlaType::diagonal(const at::Tensor& self, int64_t offset,
 }
 
 at::Tensor AtenXlaType::div(const at::Tensor& self, const at::Tensor& other) {
-  return div(self, other, "true");
+  return div(self, other, /*rounding_mode=*/c10::nullopt);
 }
 
 at::Tensor AtenXlaType::div(const at::Tensor& self, const at::Tensor& other,
-                            std::string rounding_mode) {
+                            c10::optional<std::string> rounding_mode) {
   XLA_FN_COUNTER("xla::");
   at::ScalarType dtype = at::result_type(self, other);
   auto operands = GetBinaryOperands(self, other);
@@ -1200,11 +1200,11 @@ at::Tensor AtenXlaType::div(const at::Tensor& self, const at::Scalar& other) {
 }
 
 at::Tensor& AtenXlaType::div_(at::Tensor& self, const at::Tensor& other) {
-  return div_(self, other, "true");
+  return div_(self, other, /*rounding_mode=*/c10::nullopt);
 }
 
 at::Tensor& AtenXlaType::div_(at::Tensor& self, const at::Tensor& other,
-                              std::string rounding_mode) {
+                              c10::optional<std::string> rounding_mode) {
   XLA_FN_COUNTER("xla::");
   CheckBinaryOpTypePromotion(self, self, other);
   XLATensor self_tensor = bridge::GetXlaTensor(self);
@@ -2806,8 +2806,8 @@ at::Tensor AtenXlaType::replication_pad2d_backward(
       XlaHelpers::I64List(padding)));
 }
 
-at::Tensor& AtenXlaType::resize_(
-    at::Tensor& self, at::IntArrayRef size,
+const at::Tensor& AtenXlaType::resize_(
+    const at::Tensor& self, at::IntArrayRef size,
     c10::optional<at::MemoryFormat> /* memory_format */) {
   XLA_FN_COUNTER("xla::");
   XLATensor self_tensor = bridge::GetXlaTensor(self);

@@ -31,11 +31,11 @@ class AtenXlaType {
 
   static at::Tensor __rshift__(const at::Tensor& self, const at::Tensor& other);
 
-  static at::Tensor adaptive_avg_pool3d(const at::Tensor& self,
-                                        at::IntArrayRef output_size);
+  static at::Tensor _adaptive_avg_pool3d(const at::Tensor& self,
+                                         at::IntArrayRef output_size);
 
-  static at::Tensor adaptive_avg_pool3d_backward(const at::Tensor& grad_output,
-                                                 const at::Tensor& self);
+  static at::Tensor _adaptive_avg_pool3d_backward(const at::Tensor& grad_output,
+                                                  const at::Tensor& self);
 
   static at::Tensor _adaptive_avg_pool2d(const at::Tensor& self,
                                          at::IntArrayRef output_size);
@@ -322,14 +322,14 @@ class AtenXlaType {
   static at::Tensor div(const at::Tensor& self, const at::Tensor& other);
 
   static at::Tensor div(const at::Tensor& self, const at::Tensor& other,
-                        std::string rounding_mode);
+                        c10::optional<std::string> rounding_mode);
 
   static at::Tensor div(const at::Tensor& self, const at::Scalar& other);
 
   static at::Tensor& div_(at::Tensor& self, const at::Tensor& other);
 
   static at::Tensor& div_(at::Tensor& self, const at::Tensor& other,
-                          std::string rounding_mode);
+                          c10::optional<std::string> rounding_mode);
 
   static at::Tensor& div_(at::Tensor& self, const at::Scalar& other);
 
@@ -858,8 +858,9 @@ class AtenXlaType {
                                                const at::Tensor& self,
                                                at::IntArrayRef padding);
 
-  static at::Tensor& resize_(at::Tensor& self, at::IntArrayRef size,
-                             c10::optional<at::MemoryFormat> memory_format);
+  static const at::Tensor& resize_(
+      const at::Tensor& self, at::IntArrayRef size,
+      c10::optional<at::MemoryFormat> memory_format);
 
   static at::Tensor round(const at::Tensor& self);
 

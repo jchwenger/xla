@@ -517,6 +517,7 @@ def _mp_fn(index, flags):
     print("Loss {} is below target {}. Perplexity: ".format(
         loss, math.exp(loss)))
     sys.exit(21)
+  xm.rendezvous('checking out')
   # except:
   #   print(met.metrics_report())
 

@@ -520,7 +520,7 @@ def _mp_fn(index, flags):
       sys.exit(21)
   except:
     xm.rendezvous('checking out')
-    sys.exit(21)
+    return
     # print(met.metrics_report())
 
 

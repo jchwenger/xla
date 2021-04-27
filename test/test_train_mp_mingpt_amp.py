@@ -7,6 +7,7 @@ FLAGS = args_parse.parse_common_options(
     momentum=0.5,
     lr=6e-4,
     num_epochs=18,
+    num_workers=1,
 )
 
 FLAGS.lr_decay = True
@@ -516,17 +517,18 @@ def train_mingpt(flags, **kwargs):
 
 def _mp_fn(index, flags):
   # torch.set_default_tensor_type("torch.FloatTensor")
-  # try:
-  loss = train_mingpt(flags)
-  if flags.tidy and os.path.isdir(flags.datadir):
-    shutil.rmtree(flags.datadir)
-  if loss < flags.target_loss:
-    print("Loss {} is below target {}. Perplexity: ".format(
-        loss, math.exp(loss)))
+  try:
+    loss = train_mingpt(flags)
+    if flags.tidy and os.path.isdir(flags.datadir):
+      shutil.rmtree(flags.datadir)
+    if loss < flags.target_loss:
+      print("Loss {} is below target {}. Perplexity: ".format(
+          loss, math.exp(loss)))
+      sys.exit(21)
+  except:
+    xm.rendezvous('checking out')
     sys.exit(21)
-  xm.rendezvous('checking out')
-  # except:
-  #   print(met.metrics_report())
+    # print(met.metrics_report())
 
 
 if __name__ == "__main__":

@@ -520,8 +520,8 @@ def _mp_fn(index, flags):
       sys.exit(21)
   except:
     xm.rendezvous('checking out')
-    return
     # print(met.metrics_report())
+    return
 
 
 if __name__ == "__main__":

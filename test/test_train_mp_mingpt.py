@@ -3,7 +3,7 @@ import args_parse
 FLAGS = args_parse.parse_common_options(
     datadir="/tmp/mingpt-data",
     num_cores=8,
-    batch_size=16,
+    batch_size=1,
     momentum=0.5,
     lr=6e-4,
     num_epochs=18,

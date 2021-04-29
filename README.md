@@ -330,20 +330,21 @@ export PROJECT_ID=...
 export INST_NAME=...
 export ZONE=...
 gcloud compute instances create ${INST_NAME} \
---zone=${ZONE}
---project=${PROJECT_ID} \
---machine-type=e2-highmem-16  \
---accelerator=count=4,type=nvidia-tesla-v100 \
---metadata="install-nvidia-driver=True" \
---maintenance-policy TERMINATE \
---image-family=pytorch-1-8-gpu-debian-10 \
---image-project=ml-images  \
---boot-disk-size=200GB \
---network=default \
---scopes=https://www.googleapis.com/auth/cloud-platform
+  --zone=${ZONE}
+  --project=${PROJECT_ID} \
+  --machine-type=e2-highmem-16  \
+  --accelerator=count=4,type=nvidia-tesla-v100 \
+  --metadata="install-nvidia-driver=True" \
+  --maintenance-policy TERMINATE \
+  --image-family=pytorch-1-8-gpu-debian-10 \
+  --image-project=ml-images  \
+  --boot-disk-size=200GB \
+  --network=default \
+  --scopes=https://www.googleapis.com/auth/cloud-platform
 ```
 
 It takes a little while for the nvidia drivers to be installed, but when it's done, ssh into your instance:
+
 ```bash
 gcloud compute ssh ${INST_NAME}
 $ nvidia-smi # should see the GPUs

@@ -275,38 +275,38 @@ export INST_GROUP_NAME=...
 export ZONE=...
 export PD_NAME=...
 for instance in $(
-	gcloud \
-		--project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME} \
-		--zone=${ZONE} \
-		--format='value(NAME)[terminator=" "]'
+  gcloud \
+    --project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME} \
+    --zone=${ZONE} \
+    --format='value(NAME)[terminator=" "]'
 )
 do
-	gcloud compute instances attach-disk "$instance" \
-		--disk=${PD_NAME} \
-		--zone=${ZONE} \
-		--mode=ro
+  gcloud compute instances attach-disk "$instance" \
+    --disk=${PD_NAME} \
+    --zone=${ZONE} \
+    --mode=ro
 done
 ```
 
 Then run this command to mount the PD in the filesystem:
 
 ```bash
-C="sudo mkdir -p /mnt/disks/dataset &&"
+C="     sudo mkdir -p /mnt/disks/dataset &&"
 C="${C} sudo mount -o discard,defaults /dev/sdb /mnt/disks/dataset &&"
 C="${C} sudo chmod a+w /mnt/disks/dataset;"
 COMMAND="${C} df -h"
 for instance in $(
-	gcloud \
-		--project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME} \
-		--zone=${ZONE} \
-		--format='value(NAME)[terminator=" "]'
+  gcloud \
+    --project=${PROJECT_ID} compute instance-groups managed list-instances ${INST_GROUP_NAME} \
+    --zone=${ZONE} \
+    --format='value(NAME)[terminator=" "]'
 )
 do
-	gcloud compute ssh \
-		--project=${PROJECT_ID} \
-		--zone=${ZONE} "$instance" \
-		--command="$COMMAND" \
-		--quiet
+  gcloud compute ssh \
+    --project=${PROJECT_ID} \
+    --zone=${ZONE} "$instance" \
+    --command="$COMMAND" \
+    --quiet
 done
 ```
 
@@ -318,6 +318,46 @@ At this point, the VMs should have access to the `/mnt/disks/dataset` directory 
 To learn more about TPU Pods check out this [blog
 post](https://cloud.google.com/blog/products/ai-machine-learning/googles-scalable-supercomputers-for-machine-learning-cloud-tpu-pods-are-now-publicly-available-in-beta). For more information regarding system architecture, please refer to the
 [Cloud TPU System Architecture](https://cloud.google.com/tpu/docs/system-architecture) page.
+
+## <a name="GPU"></a> Running PyTorch on Cloud GPUs with Google Cloud Platform
+
+It is also possible to test PyTorch XLA on GPUs, for instance to leverage [Automatic Mixed Precision](https://pytorch.org/docs/stable/amp.html).
+
+In order to do that, create a VM with GPUs attached (props to @JackCaoG, see [here](https://github.com/pytorch/xla/issues/2897#issuecomment-828843668)).
+
+```bash
+export PROJECT_ID=...
+export INST_NAME=...
+export ZONE=...
+gcloud compute instances create ${INST_NAME} \
+--zone=${ZONE}
+--project=${PROJECT_ID} \
+--machine-type=e2-highmem-16  \
+--accelerator=count=4,type=nvidia-tesla-v100 \
+--metadata="install-nvidia-driver=True" \
+--maintenance-policy TERMINATE \
+--image-family=pytorch-1-8-gpu-debian-10 \
+--image-project=ml-images  \
+--boot-disk-size=200GB \
+--network=default \
+--scopes=https://www.googleapis.com/auth/cloud-platform
+```
+
+It takes a little while for the nvidia drivers to be installed, but when it's done, ssh into your instance:
+```bash
+gcloud compute ssh ${INST_NAME}
+$ nvidia-smi # should see the GPUs
+```
+
+Inside the VM, download the docker container and run a test:
+
+```bash
+$ sudo docker pull gcr.io/tpu-pytorch/xla:nightly_3.7_cuda
+$ sudo docker run --gpus all -it -d gcr.io/tpu-pytorch/xla:nightly_3.7_cuda bin/bash
+$ sudo docker exec -it $(sudo docker ps | awk 'NR==2 { print $1 }') /bin/bash
+(pytorch) root@bebe743638e7:/# export GPU_NUM_DEVICES=4
+(pytorch) root@bebe743638e7:/# python pytorch/xla/test/test_train_mp_imagenet.py --fake_data
+```
 
 ## <a name="API"></a> API & Best Practices
 
@@ -333,7 +373,7 @@ run on Cloud TPUs and Cloud TPU Pods.
 ## <a name="PerfMetrics"></a> Performance Profiling and Auto-Metrics Analysis
 
 With PyTorch/XLA we provide a set of performance profiling tooling and auto-metrics analysis which you can check the following resources:
-* [Official tutorial](https://cloud.google.com/tpu/docs/pytorch-xla-performance-profiling) 
+* [Official tutorial](https://cloud.google.com/tpu/docs/pytorch-xla-performance-profiling)
 * [Colab notebook](https://colab.research.google.com/github/pytorch/xla/blob/master/contrib/colab/pytorch-xla-profiling-colab.ipynb)
 * [Sample MNIST training script with profiling](https://github.com/pytorch/xla/blob/master/test/test_profile_mp_mnist.py)
 
@@ -353,5 +393,5 @@ bug reports, feature requests, build issues, etc. are all welcome!
 
 See the [contribution guide](CONTRIBUTING.md).
 
-## Disclaimer 
+## Disclaimer
 This repository is jointly operated and maintained by Google, Facebook and a number of individual contributors listed in the [CONTRIBUTORS](https://github.com/pytorch/xla/graphs/contributors) file. For questions directed at Facebook, please send an email to opensource@fb.com. For questions directed at Google, please send an email to pytorch-xla@googlegroups.com. For all other questions, please open up an issue in this repository [here](https://github.com/pytorch/xla/issues).

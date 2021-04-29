@@ -480,15 +480,16 @@ def train_mingpt(flags, **kwargs):
   test_device_loader = pl.MpDeviceLoader(test_loader, device)
   test_loss, min_test_loss = 0.0, 0.0
   for epoch in range(1, flags.num_epochs + 1):
-    xm.master_print("Epoch {} train begin {}".format(epoch, test_utils.now()))
+    xm.master_print("Epoch {}/{} train begin {}".format(epoch,
+                                                        flags.num_epochs, test_utils.now()))
     train_loop_fn(train_device_loader)
-    xm.master_print("Epoch {} train end {}".format(epoch, test_utils.now()))
+    xm.master_print("Epoch {}/{} train end {}".format(epoch, flags.num_epochs, test_utils.now()))
 
     test_loss = test_loop_fn(test_device_loader)
     ppl = math.exp(test_loss)
     xm.master_print(
-        "Epoch {} test end {}, Test Loss={:.2f}, Perplexity={:.2f}".format(
-            epoch, test_utils.now(), test_loss, ppl))
+        "Epoch {}/{} test end {}, Test Loss={:.2f}, Perplexity={:.2f}".format(
+            epoch, flags.num_epochs, test_utils.now(), test_loss, ppl))
     min_test_loss = min(test_loss, min_test_loss)
     test_utils.write_to_summary(
         writer,

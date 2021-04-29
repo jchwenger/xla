@@ -471,7 +471,8 @@ def train_mingpt(flags, **kwargs):
       tracker.add(flags.batch_size)
       if step % flags.log_steps == 0:
         xm.add_step_closure(
-            _train_update, args=(device, f"{step}/{len(loader)}", loss, tracker, writer))
+            _train_update,
+            args=(device, f"{step}/{len(loader)}", loss, tracker, writer))
 
   def test_loop_fn(loader):
     total_samples = 0
@@ -480,7 +481,7 @@ def train_mingpt(flags, **kwargs):
     losses = []
     for data, target in loader:
       _, loss = model(data, target)
-      losses.append(loss)
+      losses.append(loss.item())
     test_loss = float(np.mean(losses))
     test_loss = xm.mesh_reduce("test_loss", test_loss, np.mean)
     return test_loss
@@ -489,15 +490,17 @@ def train_mingpt(flags, **kwargs):
   test_device_loader = pl.MpDeviceLoader(test_loader, device)
   test_loss, min_test_loss = 0.0, float("inf")
   for epoch in range(1, flags.num_epochs + 1):
-    xm.master_print("Epoch {} train begin {}".format(epoch, test_utils.now()))
+    xm.master_print("Epoch {}/{} train begin {}".format(epoch, flags.num_epochs,
+                                                        test_utils.now()))
     train_loop_fn(train_device_loader)
-    xm.master_print("Epoch {} train end {}".format(epoch, test_utils.now()))
+    xm.master_print("Epoch {}/{} train end {}".format(epoch, flags.num_epochs,
+                                                      test_utils.now()))
 
     test_loss = test_loop_fn(test_device_loader)
     ppl = math.exp(test_loss)
     xm.master_print(
-        "Epoch {} test end {}, Test Loss={:.2f}, Perplexity={:.2f}".format(
-            epoch, test_utils.now(), test_loss, ppl))
+        "Epoch {}/{} test end {}, Test Loss={:.2f}, Perplexity={:.2f}".format(
+            epoch, flags.num_epochs, test_utils.now(), test_loss, ppl))
     min_test_loss = min(test_loss, min_test_loss)
     test_utils.write_to_summary(
         writer,

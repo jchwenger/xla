@@ -2,11 +2,11 @@ import args_parse
 
 FLAGS = args_parse.parse_common_options(
     datadir="/tmp/mingpt-data",
-    num_cores=8,
-    batch_size=1,
+    num_cores=4,
+    batch_size=100,
     momentum=0.5,
     lr=6e-4,
-    num_epochs=18,
+    num_epochs=5,
     num_workers=1,
 )
 
@@ -25,6 +25,7 @@ FLAGS.warmup_tokens = 20000
 FLAGS.final_tokens = 260e9
 FLAGS.weight_decay = 0.1
 FLAGS.train_test_split = 100
+FLAGS.target_loss = 1.0
 
 import os
 import sys
@@ -470,7 +471,7 @@ def train_mingpt(flags, **kwargs):
       tracker.add(flags.batch_size)
       if step % flags.log_steps == 0:
         xm.add_step_closure(
-            _train_update, args=(device, step, loss, tracker, writer))
+            _train_update, args=(device, f"{step}/{len(loader)}", loss, tracker, writer))
 
   def test_loop_fn(loader):
     total_samples = 0
@@ -478,14 +479,15 @@ def train_mingpt(flags, **kwargs):
     model.eval()
     losses = []
     for data, target in loader:
-      logits, loss = model(data, target)
+      _, loss = model(data, target)
+      losses.append(loss)
     test_loss = float(np.mean(losses))
     test_loss = xm.mesh_reduce("test_loss", test_loss, np.mean)
     return test_loss
 
   train_device_loader = pl.MpDeviceLoader(train_loader, device)
   test_device_loader = pl.MpDeviceLoader(test_loader, device)
-  test_loss, min_test_loss = 0.0, 0.0
+  test_loss, min_test_loss = 0.0, float("inf")
   for epoch in range(1, flags.num_epochs + 1):
     xm.master_print("Epoch {} train begin {}".format(epoch, test_utils.now()))
     train_loop_fn(train_device_loader)

@@ -81,27 +81,27 @@ Follow these steps to train a PyTorch model with Docker on a Cloud TPU:
 
     To pull the dockers run one of the following commands:
 
-    ```Shell
+    ```bash
     (vm)$ docker pull gcr.io/tpu-pytorch/xla:nightly_3.6
     ```
 
-    ```Shell
+    ```bash
     (vm)$ docker pull gcr.io/tpu-pytorch/xla:nightly_3.6_YYYYMMDD
     ```
 
-    ```Shell
+    ```bash
     (vm)$ docker pull gcr.io/tpu-pytorch/xla:r1.8.1
     ```
 
 3. Where `$TPU_IP_ADDRESS` (e.g.: `10.1.1.2`) is your TPU Internal IP displayed in GCP UI, after pulling the docker image you can either:
 
     * Run the container with a single command:
-      ```Shell
+      ```bash
       (vm)$ docker run --shm-size 16G -e XRT_TPU_CONFIG="tpu_worker;0;$TPU_IP_ADDRESS:8470" gcr.io/tpu-pytorch/xla:r1.8.1 python /pytorch/xla/test/test_train_mp_mnist.py
       ```
 
     * Run the script in an interactive shell:
-      ```Shell
+      ```bash
       (vm)$ docker run -it --shm-size 16G gcr.io/tpu-pytorch/xla:r1.8.1
       (pytorch) root@CONTAINERID:/$ export XRT_TPU_CONFIG="tpu_worker;0;$TPU_IP_ADDRESS:8470"
       (pytorch) root@CONTAINERID:/$ python pytorch/xla/test/test_train_mp_mnist.py
@@ -124,7 +124,7 @@ Follow these steps to train a PyTorch model with a VM Image on a Cloud TPU:
 
 2. SSH into VM and activate the conda environment you wish to use. Each release (e.g.: `1.7`, `1.8`, `nightly`) is a separate conda environment.
 
-    ```Shell
+    ```bash
     (vm)$ export XRT_TPU_CONFIG="tpu_worker;0;$TPU_IP_ADDRESS:8470"
     (vm)$ conda env list
     # conda environments:
@@ -141,7 +141,7 @@ Follow these steps to train a PyTorch model with a VM Image on a Cloud TPU:
 
     To update the wheels `torch` and `torch_xla` to the latest nightly
     distribution (only updates your `torch-xla-nightly` conda env), run:
-    ```Shell
+    ```bash
     (vm)$ cd /usr/share/torch-xla-nightly/pytorch/xla
     (vm)$ . ./scripts/update_nightly_torch_wheels.sh
     ```
@@ -188,12 +188,12 @@ Training on pods can be broken down to largely 3 different steps:
 1. SSH into any of the VMs in the instance group and get in an environment where you have `torch` and `torch_xla` installed (whether that's a [conda environment](#consume-prebuilt-compute-vm-images) or [docker container](#consume-prebuilt-docker-images)).
 2. Let's say the command you ran to run a v3-8 was: `XLA_USE_BF16=1 python test/test_train_mp_imagenet.py --fake_data`.
 * To distribute training as a conda environment process:
-```
+```bash
 (torch-xla-1.8.1)$ python -m torch_xla.distributed.xla_dist --tpu=$TPU_POD_NAME --conda-env=torch-xla-1.8.1 --env=XLA_USE_BF16=1 -- python /usr/share/torch-xla-1.8.1/pytorch/xla/test/test_train_mp_imagenet.py --fake_data
 ```
 
 * Or, to distribute training as a docker container:
-```
+```bash
 (torch-xla-1.8.1)$ python -m torch_xla.distributed.xla_dist --tpu=$TPU_POD_NAME --docker-image=gcr.io/tpu-pytorch/xla:r1.8.1 --docker-run-flag=--rm=true --docker-run-flag=--shm-size=50GB --env=XLA_USE_BF16=1 -- python /pytorch/xla/test/test_train_mp_imagenet.py --fake_data
 ```
 
@@ -216,23 +216,23 @@ minutes for regular PD vs. 6 minutes for SSD PD) but later epochs are similar
 once the dataset has been cached into the VM.
 
 Regular PD:
-```
+```bash
 gcloud compute disks create --size=200GB --zone=$ZONE $PD_NAME --project=$PROJECT_ID
 ```
 
 SSD PD:
-```
+```bash
 gcloud compute disks create --size=200GB --zone=$ZONE $PD_NAME --project=$PROJECT_ID --type=pd-ssd
 ```
 
 #### Create (or reuse) a VM to populate the persistent disk and SSH into it
 To attach a disk to an existing VM:
-```
+```bash
 gcloud compute instances attach-disk $VM_NAME --disk $PD_NAME --zone $ZONE --mode=rw
 ```
 
 To create a new VM with a disk attached:
-```
+```bash
 gcloud compute instances create pd-filler \
 --zone=$ZONE \
 --machine-type=n1-standard-16  \
@@ -246,7 +246,7 @@ gcloud compute ssh pd-filler --zone=$ZONE
 
 #### SSH into your VM and populate the persistent disk
 (Run this from your `pd-filler` VM)
-```
+```bash
 sudo mkfs.ext4 -m 0 -F -E lazy_itable_init=0,lazy_journal_init=0,discard /dev/sdb
 sudo mkdir -p /mnt/disks/dataset
 sudo mount -o discard,defaults /dev/sdb /mnt/disks/dataset
